@@ -1,37 +1,47 @@
-import mongoose from "mongoose";
+import mongoose from 'mongoose';
 
-const studentSchema = new mongoose.Schema({
-  username: String,
-  email: { type: String, unique: true },
-  password: String,
+const studentSchema = new mongoose.Schema(
+   {
+      user: {
+         type: mongoose.Schema.Types.ObjectId,
+         ref: 'User',
+         unique: true,
+      },
 
-  firstName: String,
-  lastName: String,
-  fatherName: String,
+      studentId: {
+         type: String,
+         unique: true,
+         sparse: true,
+      },
 
-  aadharNumber: String,
-  rollNumber: String,
+      username: String,
+      email: String,
 
-  institutionName: String,
-  institutionAddress: String,
-  passingYear: String,
+      firstName: String,
+      lastName: String,
+      fatherName: String,
 
-  phone: String,
-  address: String,
-  dob: String,
+      aadharNumber: String,
+      rollNumber: String,
 
-  degree: String,
-  major: String,
-  grade: String,
+      institutionName: String,
+      institutionAddress: String,
+      passingYear: String,
 
-  course: {
-  type: String,
-  required: true,
-},
-  role: {
-    type: String,
-    default: "student",
-  },
-}, { timestamps: true });
+      phone: String,
+      address: String,
+      dob: String,
 
-export default mongoose.model("Student", studentSchema);
+      degree: String,
+      major: String,
+      grade: String,
+
+      course: {
+         type: String,
+         default: '',
+      },
+   },
+   { timestamps: true },
+);
+
+export default mongoose.model('Student', studentSchema);

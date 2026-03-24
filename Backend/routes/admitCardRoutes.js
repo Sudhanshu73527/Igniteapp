@@ -1,16 +1,19 @@
-import express from "express";
+import express from 'express';
 import {
-  createAdmitCard,
-  getAdmitCards,
-  getStudentAdmit,
-  deleteAdmitCard,
-} from "../controllers/admitCardController.js";
+   createAdmitCard,
+   getAdmitCards,
+   getStudentAdmit,
+   deleteAdmitCard,
+   updateAdmitCard,
+} from '../controllers/admitCardController.js';
+import { protect, isAdmin, isStudent } from '../middleware/authMiddleware.js';
 
 const router = express.Router();
 
-router.post("/create", createAdmitCard);
-router.get("/all", getAdmitCards);
-router.get("/student/:id", getStudentAdmit);
-router.delete("/delete/:id", deleteAdmitCard);
+router.post('/', protect, isAdmin, createAdmitCard);
+router.get('/', protect, isAdmin, getAdmitCards);
+router.get('/student/:id', protect, getStudentAdmit);
+router.put('/:id', protect, isAdmin, updateAdmitCard);
+router.delete('/:id', protect, isAdmin, deleteAdmitCard);
 
 export default router;

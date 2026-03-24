@@ -1,18 +1,27 @@
-import mongoose from "mongoose";
+import mongoose from 'mongoose';
 
 const admitCardSchema = new mongoose.Schema(
-  {
-    studentId: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "Student",
-    },
-    name: String,
-    rollNumber: String,
-    course: String,
-    address: String,
-    examDate: String,
-  },
-  { timestamps: true }
+   {
+      student: {
+         type: mongoose.Schema.Types.ObjectId,
+         ref: 'User',
+         required: true,
+         unique: true,
+      },
+      examName: {
+         type: String,
+         default: '',
+      },
+      examDate: {
+         type: String,
+         default: '',
+      },
+      pdfUrl: {
+         type: String,
+         required: true,
+      },
+   },
+   { timestamps: true },
 );
 
-export default mongoose.model("AdmitCard", admitCardSchema);
+export default mongoose.model('AdmitCard', admitCardSchema);

@@ -1,12 +1,10 @@
-import express from "express";
-import { adminLogin, getAllUsers } from "../controllers/adminController.js";
+import express from 'express';
+import { getAllUsers } from '../controllers/adminController.js';
+import { protect, isAdmin } from '../middleware/authMiddleware.js';
 
 const router = express.Router();
 
-// 🔐 Admin Login
-router.post("/login", adminLogin);
-
 // 👥 Get All Users (Admin Panel)
-router.get("/users", getAllUsers);
+router.get('/users', protect, isAdmin, getAllUsers);
 
 export default router;

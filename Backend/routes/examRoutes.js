@@ -1,16 +1,17 @@
-import express from "express";
+import express from 'express';
 import {
-  addExam,
-  getExams,
-  updateExam,
-  deleteExam,
-} from "../controllers/examController.js";
+   addExam,
+   getExams,
+   updateExam,
+   deleteExam,
+} from '../controllers/examController.js';
+import { protect, isAdmin } from '../middleware/authMiddleware.js';
 
 const router = express.Router();
 
-router.post("/add", addExam);
-router.get("/", getExams);
-router.put("/:id", updateExam);
-router.delete("/:id", deleteExam);
+router.post('/add', protect, isAdmin, addExam);
+router.get('/', getExams);
+router.put('/:id', protect, isAdmin, updateExam);
+router.delete('/:id', protect, isAdmin, deleteExam);
 
 export default router;

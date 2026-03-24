@@ -1,14 +1,19 @@
-import express from "express";
+import express from 'express';
 import {
-  addNotice,
-  getNotices,
-  deleteNotice,
-} from "../controllers/noticeController.js";
+   addNotice,
+   getNotices,
+   deleteNotice,
+   getNoticeById,
+   updateNotice,
+} from '../controllers/noticeController.js';
+import { protect, isAdmin } from '../middleware/authMiddleware.js';
 
 const router = express.Router();
 
-router.post("/add", addNotice);
-router.get("/all", getNotices);
-router.delete("/delete/:id", deleteNotice);
+router.get('/', protect, getNotices);
+router.get('/:id', protect, getNoticeById);
+router.post('/', protect, isAdmin, addNotice);
+router.put('/:id', protect, isAdmin, updateNotice);
+router.delete('/:id', protect, isAdmin, deleteNotice);
 
 export default router;

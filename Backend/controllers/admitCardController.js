@@ -1,110 +1,158 @@
-import AdmitCard from "../models/AdmitCard.js";
-import Student from "../models/Student.js";
+import AdmitCard from '../models/AdmitCard.js';
+import User from '../models/User.js';
 
-// 🔥 CREATE OR UPDATE ADMIT CARD
 export const createAdmitCard = async (req, res) => {
-  try {
-    const { studentId, examDate } = req.body;
+   try {
+      const { studentId, examName, examDate, pdfUrl } = req.body;
 
-    // ✅ VALIDATION
-    if (!studentId || !examDate) {
-      return res.status(400).json({
-        message: "Student ID and Exam Date are required",
+      if (!studentId || !pdfUrl) {
+         return res.status(400).json({
+            success: false,
+            message: 'studentId and pdfUrl are required',
+            data: {},
+         });
+      }
+
+      const student = await User.findById(studentId);
+      if (!student || student.role !== 'student') {
+         return res.status(404).json({
+            success: false,
+            message: 'Student not found',
+            data: {},
+         });
+      }
+
+      const admit = await AdmitCard.findOneAndUpdate(
+         { student: student._id },
+         {
+            student: student._id,
+            examName: examName || '',
+            examDate: examDate || '',
+            pdfUrl,
+         },
+         {
+            new: true,
+            upsert: true,
+            runValidators: true,
+         },
+      ).populate('student', 'firstName lastName email');
+
+      return res.status(201).json({
+         success: true,
+         message: 'Admit card saved successfully',
+         data: { admitCard: admit },
       });
-    }
-
-    // ✅ FIND STUDENT
-    const student = await Student.findById(studentId);
-
-    if (!student) {
-      return res.status(404).json({ message: "Student not found" });
-    }
-
-    // ✅ CHECK EXISTING ADMIT CARD
-    let admit = await AdmitCard.findOne({ studentId });
-
-    if (admit) {
-      // 🔁 UPDATE EXISTING
-      admit.examDate = examDate;
-      admit.name = student.name;
-      admit.rollNumber = student.rollNumber;
-      admit.course = student.course;
-      admit.address = student.address;
-
-      await admit.save();
-
-      return res.status(200).json({
-        message: "Admit Card Updated ✅",
-        admit,
+   } catch (error) {
+      return res.status(500).json({
+         success: false,
+         message: 'Error saving admit card',
+         data: {},
       });
-    }
-
-    // 🆕 CREATE NEW
-    admit = new AdmitCard({
-      studentId,
-      name: student.name,
-      rollNumber: student.rollNumber,
-      course: student.course,
-      address: student.address,
-      examDate,
-    });
-
-    await admit.save();
-
-    res.status(201).json({
-      message: "Admit Card Created ✅",
-      admit,
-    });
-  } catch (error) {
-    console.error("Create Admit Error:", error);
-    res.status(500).json({ error: error.message });
-  }
+   }
 };
 
-// 📄 GET ALL ADMIT CARDS (ADMIN)
-export const getAdmitCards = async (req, res) => {
-  try {
-    const data = await AdmitCard.find()
-      .populate("studentId")
-      .sort({ createdAt: -1 });
+export const getAdmitCards = async (_req, res) => {
+   try {
+      const admitCards = await AdmitCard.find()
+         .populate('student', 'firstName lastName email')
+         .sort({ createdAt: -1 });
 
-    res.json(data);
-  } catch (error) {
-    console.error("Get Admit Cards Error:", error);
-    res.status(500).json({ error: error.message });
-  }
+      return res.json({
+         success: true,
+         message: 'Admit cards fetched successfully',
+         data: { admitCards },
+      });
+   } catch (error) {
+      return res.status(500).json({
+         success: false,
+         message: 'Error fetching admit cards',
+         data: {},
+      });
+   }
 };
 
-// 👨‍🎓 GET SINGLE STUDENT ADMIT CARD
 export const getStudentAdmit = async (req, res) => {
-  try {
-    const data = await AdmitCard.findOne({
-      studentId: req.params.id,
-    }).sort({ createdAt: -1 });
+   try {
+      const admitCard = await AdmitCard.findOne({
+         student: req.params.id,
+      }).populate('student', 'firstName lastName email');
 
-    if (!data) {
-      return res.status(404).json({
-        message: "Admit card not found",
+      if (!admitCard) {
+         return res.status(404).json({
+            success: false,
+            message: 'Admit card not found',
+            data: {},
+         });
+      }
+
+      return res.json({
+         success: true,
+         message: 'Admit card fetched successfully',
+         data: { admitCard },
       });
-    }
-
-    res.json(data);
-  } catch (error) {
-    console.error("Get Student Admit Error:", error);
-    res.status(500).json({ error: error.message });
-  }
+   } catch (error) {
+      return res.status(500).json({
+         success: false,
+         message: 'Error fetching admit card',
+         data: {},
+      });
+   }
 };
 
-// ❌ DELETE ADMIT CARD (OPTIONAL BUT PRO FEATURE)
+export const updateAdmitCard = async (req, res) => {
+   try {
+      const updated = await AdmitCard.findByIdAndUpdate(
+         req.params.id,
+         req.body,
+         {
+            new: true,
+            runValidators: true,
+         },
+      ).populate('student', 'firstName lastName email');
+
+      if (!updated) {
+         return res.status(404).json({
+            success: false,
+            message: 'Admit card not found',
+            data: {},
+         });
+      }
+
+      return res.json({
+         success: true,
+         message: 'Admit card updated successfully',
+         data: { admitCard: updated },
+      });
+   } catch (error) {
+      return res.status(500).json({
+         success: false,
+         message: 'Error updating admit card',
+         data: {},
+      });
+   }
+};
+
 export const deleteAdmitCard = async (req, res) => {
-  try {
-    await AdmitCard.findByIdAndDelete(req.params.id);
+   try {
+      const deleted = await AdmitCard.findByIdAndDelete(req.params.id);
+      if (!deleted) {
+         return res.status(404).json({
+            success: false,
+            message: 'Admit card not found',
+            data: {},
+         });
+      }
 
-    res.json({ message: "Admit Card Deleted ✅" });
-  } catch (error) {
-    console.error("Delete Error:", error);
-    res.status(500).json({ error: error.message });
-  }
+      return res.json({
+         success: true,
+         message: 'Admit card deleted successfully',
+         data: {},
+      });
+   } catch (error) {
+      return res.status(500).json({
+         success: false,
+         message: 'Error deleting admit card',
+         data: {},
+      });
+   }
 };
-
-

@@ -1,35 +1,125 @@
-import Notice from "../models/Notice.js";
+import Notice from '../models/Notice.js';
 
-// ➕ Add Notice
 export const addNotice = async (req, res) => {
-  try {
-    const { title, description } = req.body;
+   try {
+      const { title, description } = req.body;
 
-    const notice = new Notice({ title, description });
-    await notice.save();
+      if (!title || !description) {
+         return res.status(400).json({
+            success: false,
+            message: 'title and description are required',
+            data: {},
+         });
+      }
 
-    res.status(201).json({ message: "Notice Added", notice });
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
+      const notice = await Notice.create({ title, description });
+
+      return res.status(201).json({
+         success: true,
+         message: 'Notice created successfully',
+         data: { notice },
+      });
+   } catch (error) {
+      return res.status(500).json({
+         success: false,
+         message: 'Error creating notice',
+         data: {},
+      });
+   }
 };
 
-// 📄 Get All Notices
-export const getNotices = async (req, res) => {
-  try {
-    const notices = await Notice.find().sort({ createdAt: -1 });
-    res.json(notices);
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
+export const getNotices = async (_req, res) => {
+   try {
+      const notices = await Notice.find().sort({ createdAt: -1 });
+      return res.json({
+         success: true,
+         message: 'Notices fetched successfully',
+         data: { notices },
+      });
+   } catch (error) {
+      return res.status(500).json({
+         success: false,
+         message: 'Error fetching notices',
+         data: {},
+      });
+   }
 };
 
-// ❌ Delete Notice
+export const getNoticeById = async (req, res) => {
+   try {
+      const notice = await Notice.findById(req.params.id);
+      if (!notice) {
+         return res.status(404).json({
+            success: false,
+            message: 'Notice not found',
+            data: {},
+         });
+      }
+
+      return res.json({
+         success: true,
+         message: 'Notice fetched successfully',
+         data: { notice },
+      });
+   } catch (error) {
+      return res.status(500).json({
+         success: false,
+         message: 'Error fetching notice',
+         data: {},
+      });
+   }
+};
+
+export const updateNotice = async (req, res) => {
+   try {
+      const updated = await Notice.findByIdAndUpdate(req.params.id, req.body, {
+         new: true,
+         runValidators: true,
+      });
+
+      if (!updated) {
+         return res.status(404).json({
+            success: false,
+            message: 'Notice not found',
+            data: {},
+         });
+      }
+
+      return res.json({
+         success: true,
+         message: 'Notice updated successfully',
+         data: { notice: updated },
+      });
+   } catch (error) {
+      return res.status(500).json({
+         success: false,
+         message: 'Error updating notice',
+         data: {},
+      });
+   }
+};
+
 export const deleteNotice = async (req, res) => {
-  try {
-    await Notice.findByIdAndDelete(req.params.id);
-    res.json({ message: "Notice Deleted" });
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
+   try {
+      const deleted = await Notice.findByIdAndDelete(req.params.id);
+      if (!deleted) {
+         return res.status(404).json({
+            success: false,
+            message: 'Notice not found',
+            data: {},
+         });
+      }
+
+      return res.json({
+         success: true,
+         message: 'Notice deleted successfully',
+         data: {},
+      });
+   } catch (error) {
+      return res.status(500).json({
+         success: false,
+         message: 'Error deleting notice',
+         data: {},
+      });
+   }
 };
