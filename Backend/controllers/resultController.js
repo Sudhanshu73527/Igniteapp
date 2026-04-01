@@ -10,13 +10,21 @@ const resultPopulate = [
 
 export const addResult = async (req, res) => {
    try {
-      const { studentId, courseId, marks, grade, remarks, pdfUrl } = req.body;
+      const { studentId, courseId, marks, grade, remarks, pdfUrl, resultUrl } =
+         req.body;
+      const resolvedResultUrl = String(resultUrl || pdfUrl || '').trim();
 
-      if (!studentId || !courseId || marks === undefined || !grade || !pdfUrl) {
+      if (
+         !studentId ||
+         !courseId ||
+         marks === undefined ||
+         !grade ||
+         !resolvedResultUrl
+      ) {
          return res.status(400).json({
             success: false,
             message:
-               'studentId, courseId, marks, grade and pdfUrl are required',
+               'studentId, courseId, marks, grade and resultUrl are required',
             data: {},
          });
       }
@@ -44,7 +52,8 @@ export const addResult = async (req, res) => {
          marks,
          grade,
          remarks,
-         pdfUrl,
+         pdfUrl: resolvedResultUrl,
+         resultUrl: resolvedResultUrl,
       });
 
       await result.populate(resultPopulate);
@@ -96,6 +105,19 @@ export const getResultById = async (req, res) => {
          });
       }
 
+      const isAdmin = req.user?.role === 'admin';
+      const isOwner =
+         String(result.student?._id || result.student) ===
+         String(req.user?._id);
+
+      if (!isAdmin && !isOwner) {
+         return res.status(403).json({
+            success: false,
+            message: 'Not allowed to access this result',
+            data: {},
+         });
+      }
+
       return res.json({
          success: true,
          message: 'Result fetched successfully',
@@ -112,8 +134,14 @@ export const getResultById = async (req, res) => {
 
 export const updateResult = async (req, res) => {
    try {
-      const { studentId, courseId, ...rest } = req.body;
+      const { studentId, courseId, resultUrl, pdfUrl, ...rest } = req.body;
       const updatePayload = { ...rest };
+      const resolvedResultUrl = String(resultUrl || pdfUrl || '').trim();
+
+      if (resolvedResultUrl) {
+         updatePayload.resultUrl = resolvedResultUrl;
+         updatePayload.pdfUrl = resolvedResultUrl;
+      }
 
       if (studentId) {
          const student = await User.findById(studentId);
@@ -143,7 +171,7 @@ export const updateResult = async (req, res) => {
          req.params.id,
          updatePayload,
          {
-            new: true,
+            returnDocument: 'after',
             runValidators: true,
          },
       ).populate(resultPopulate);

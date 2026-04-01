@@ -1,49 +1,42 @@
 import mongoose from 'mongoose';
 
-const resultSchema = new mongoose.Schema(
+const certificateSchema = new mongoose.Schema(
    {
-      student: {
+      user: {
          type: mongoose.Schema.Types.ObjectId,
          ref: 'User',
          required: true,
+         index: true,
       },
       course: {
          type: mongoose.Schema.Types.ObjectId,
          ref: 'Course',
          required: true,
+         index: true,
       },
-      marks: {
-         type: Number,
-         required: true,
-         min: 0,
-         max: 100,
-      },
-      grade: {
+      status: {
          type: String,
-         required: true,
+         enum: ['pending', 'approved', 'rejected'],
+         default: 'pending',
       },
-      remarks: {
+      certificateUrl: {
          type: String,
          default: '',
       },
-      pdfUrl: {
+      note: {
          type: String,
          default: '',
       },
-      resultUrl: {
-         type: String,
-         default: '',
-      },
-      isVerified: {
-         type: Boolean,
-         default: false,
-      },
-      verifiedBy: {
+      approvedBy: {
          type: mongoose.Schema.Types.ObjectId,
          ref: 'User',
          default: null,
       },
-      verifiedAt: {
+      approvedAt: {
+         type: Date,
+         default: null,
+      },
+      rejectedAt: {
          type: Date,
          default: null,
       },
@@ -51,4 +44,6 @@ const resultSchema = new mongoose.Schema(
    { timestamps: true },
 );
 
-export default mongoose.model('Result', resultSchema);
+certificateSchema.index({ user: 1, course: 1 }, { unique: true });
+
+export default mongoose.model('Certificate', certificateSchema);

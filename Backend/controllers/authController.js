@@ -1,11 +1,19 @@
 import bcrypt from 'bcryptjs';
+import crypto from 'crypto';
+import dotenv from 'dotenv';
 import jwt from 'jsonwebtoken';
 import User from '../models/User.js';
 import Student from '../models/Student.js';
 
-const JWT_SECRET = process.env.JWT_SECRET || 'secretkey';
+dotenv.config();
+
+const JWT_SECRET = process.env.JWT_SECRET;
 const JWT_EXPIRES = '7d';
 const RESET_TOKEN_EXPIRES_MIN = 15;
+
+if (!JWT_SECRET) {
+   throw new Error('JWT_SECRET must be set in environment variables');
+}
 
 const sanitizeUser = (user) => ({
    _id: user._id,
@@ -23,6 +31,11 @@ const makeAuthToken = (user) =>
       expiresIn: JWT_EXPIRES,
    });
 
+const hashResetToken = (token) =>
+   crypto.createHash('sha256').update(String(token)).digest('hex');
+
+const createResetCode = () => `${Math.floor(100000 + Math.random() * 900000)}`;
+
 export const signup = async (req, res) => {
    try {
       const { firstName, lastName, email, password, age, role } = req.body;
@@ -37,6 +50,23 @@ export const signup = async (req, res) => {
       }
 
       const normalizedEmail = String(email).trim().toLowerCase();
+      const requestedRole = String(role || 'student').toLowerCase();
+
+      if (requestedRole === 'admin') {
+         const adminCreationKey = process.env.ADMIN_CREATION_KEY;
+         const headerKey = String(req.headers['x-admin-creation-key'] || '');
+         const internalAllowed =
+            adminCreationKey && headerKey && adminCreationKey === headerKey;
+
+         if (!internalAllowed) {
+            return res.status(403).json({
+               success: false,
+               message: 'Public admin account creation is not allowed',
+               data: {},
+            });
+         }
+      }
+
       const existingUser = await User.findOne({ email: normalizedEmail });
       if (existingUser) {
          return res.status(400).json({
@@ -53,7 +83,7 @@ export const signup = async (req, res) => {
          email: normalizedEmail,
          password: hashedPassword,
          age,
-         role: role === 'admin' ? 'admin' : 'student',
+         role: requestedRole === 'admin' ? 'admin' : 'student',
       });
 
       if (user.role === 'student') {
@@ -165,32 +195,28 @@ export const forgotPassword = async (req, res) => {
 
       const normalizedEmail = String(email).trim().toLowerCase();
       const user = await User.findOne({ email: normalizedEmail });
-      if (!user) {
-         return res.status(404).json({
-            success: false,
-            message: 'User not found',
-            data: {},
-         });
+
+      if (user) {
+         const resetCode = createResetCode();
+
+         user.resetPasswordToken = hashResetToken(resetCode);
+         user.resetPasswordExpires = new Date(
+            Date.now() + RESET_TOKEN_EXPIRES_MIN * 60 * 1000,
+         );
+         await user.save();
+
+         if (process.env.NODE_ENV !== 'production') {
+            console.log(
+               `[DEV] Password reset code for ${normalizedEmail}: ${resetCode}`,
+            );
+         }
       }
-
-      const resetToken = jwt.sign(
-         { id: user._id, purpose: 'reset' },
-         JWT_SECRET,
-         { expiresIn: `${RESET_TOKEN_EXPIRES_MIN}m` },
-      );
-
-      user.resetPasswordToken = resetToken;
-      user.resetPasswordExpires = new Date(
-         Date.now() + RESET_TOKEN_EXPIRES_MIN * 60 * 1000,
-      );
-      await user.save();
 
       return res.json({
          success: true,
-         message: 'Password reset token generated',
-         data: {
-            resetToken,
-         },
+         message:
+            'If the account exists, a password reset code has been generated',
+         data: {},
       });
    } catch (error) {
       return res.status(500).json({
@@ -214,32 +240,23 @@ export const resetPassword = async (req, res) => {
          });
       }
 
-      const decoded = jwt.verify(token, JWT_SECRET);
-      if (decoded.purpose !== 'reset') {
+      if (String(password).length < 6) {
          return res.status(400).json({
             success: false,
-            message: 'Invalid reset token',
+            message: 'Password must be at least 6 characters',
             data: {},
          });
       }
 
-      const user = await User.findById(decoded.id);
+      const hashedToken = hashResetToken(token);
+      const user = await User.findOne({
+         resetPasswordToken: hashedToken,
+         resetPasswordExpires: { $gt: new Date() },
+      });
       if (!user) {
-         return res.status(404).json({
-            success: false,
-            message: 'User not found',
-            data: {},
-         });
-      }
-
-      if (
-         user.resetPasswordToken !== token ||
-         !user.resetPasswordExpires ||
-         user.resetPasswordExpires.getTime() < Date.now()
-      ) {
          return res.status(400).json({
             success: false,
-            message: 'Reset token expired or invalid',
+            message: 'Reset code is invalid or expired',
             data: {},
          });
       }
@@ -257,7 +274,7 @@ export const resetPassword = async (req, res) => {
    } catch (error) {
       return res.status(400).json({
          success: false,
-         message: 'Invalid or expired token',
+         message: 'Invalid or expired reset code',
          data: {},
       });
    }

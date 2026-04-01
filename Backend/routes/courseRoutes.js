@@ -3,6 +3,7 @@ import {
    addCourse,
    getCourses,
    getCourseById,
+   getCourseDetail,
    enrollCourse,
    getMyCourses,
    updateCourse,
@@ -16,6 +17,7 @@ router.post('/add', protect, isAdmin, addCourse);
 router.get('/', getCourses);
 router.post('/enroll', protect, isStudent, enrollCourse);
 router.get('/my', protect, isStudent, getMyCourses);
+router.get('/:id/detail', protect, getCourseDetail);
 router.get('/:id', getCourseById);
 
 // ✅ NEW

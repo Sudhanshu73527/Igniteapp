@@ -20,6 +20,10 @@ const admitCardSchema = new mongoose.Schema(
          type: String,
          required: true,
       },
+      admitCardUrl: {
+         type: String,
+         default: '',
+      },
    },
    { timestamps: true },
 );

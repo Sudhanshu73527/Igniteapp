@@ -3,12 +3,13 @@ import User from '../models/User.js';
 
 export const createAdmitCard = async (req, res) => {
    try {
-      const { studentId, examName, examDate, pdfUrl } = req.body;
+      const { studentId, examName, examDate, pdfUrl, admitCardUrl } = req.body;
+      const resolvedAdmitUrl = String(admitCardUrl || pdfUrl || '').trim();
 
-      if (!studentId || !pdfUrl) {
+      if (!studentId || !resolvedAdmitUrl) {
          return res.status(400).json({
             success: false,
-            message: 'studentId and pdfUrl are required',
+            message: 'studentId and admitCardUrl are required',
             data: {},
          });
       }
@@ -28,10 +29,11 @@ export const createAdmitCard = async (req, res) => {
             student: student._id,
             examName: examName || '',
             examDate: examDate || '',
-            pdfUrl,
+            pdfUrl: resolvedAdmitUrl,
+            admitCardUrl: resolvedAdmitUrl,
          },
          {
-            new: true,
+            returnDocument: 'after',
             upsert: true,
             runValidators: true,
          },
@@ -73,6 +75,17 @@ export const getAdmitCards = async (_req, res) => {
 
 export const getStudentAdmit = async (req, res) => {
    try {
+      const isAdmin = req.user?.role === 'admin';
+      const isOwner = String(req.params.id) === String(req.user?._id);
+
+      if (!isAdmin && !isOwner) {
+         return res.status(403).json({
+            success: false,
+            message: 'Not allowed to access this admit card',
+            data: {},
+         });
+      }
+
       const admitCard = await AdmitCard.findOne({
          student: req.params.id,
       }).populate('student', 'firstName lastName email');
@@ -101,11 +114,20 @@ export const getStudentAdmit = async (req, res) => {
 
 export const updateAdmitCard = async (req, res) => {
    try {
+      const { admitCardUrl, pdfUrl, ...rest } = req.body;
+      const updatePayload = { ...rest };
+      const resolvedAdmitUrl = String(admitCardUrl || pdfUrl || '').trim();
+
+      if (resolvedAdmitUrl) {
+         updatePayload.admitCardUrl = resolvedAdmitUrl;
+         updatePayload.pdfUrl = resolvedAdmitUrl;
+      }
+
       const updated = await AdmitCard.findByIdAndUpdate(
          req.params.id,
-         req.body,
+         updatePayload,
          {
-            new: true,
+            returnDocument: 'after',
             runValidators: true,
          },
       ).populate('student', 'firstName lastName email');

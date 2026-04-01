@@ -96,7 +96,7 @@ export const updateTicketStatus = async (req, res) => {
       const ticket = await Ticket.findByIdAndUpdate(
          id,
          { status: normalizeStatus(status) },
-         { new: true, runValidators: true },
+         { returnDocument: 'after', runValidators: true },
       );
 
       if (!ticket) {
