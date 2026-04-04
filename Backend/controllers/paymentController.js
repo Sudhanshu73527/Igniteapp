@@ -4,6 +4,7 @@ import Razorpay from 'razorpay';
 import Course from '../models/Course.js';
 import Enrollment from '../models/Enrollment.js';
 import User from '../models/User.js';
+import { createNotificationsForRole } from '../utils/notificationService.js';
 
 dotenv.config();
 
@@ -220,6 +221,20 @@ export const verifyRazorpayPayment = async (req, res) => {
       ) {
          user.enrolledCourses.push(course._id);
          await user.save();
+      }
+
+      try {
+         await createNotificationsForRole('admin', {
+            type: 'course-purchase',
+            title: `New course purchase: ${course.title}`,
+            message: `${req.user?.firstName || 'A student'} completed payment successfully.`,
+            entityType: 'enrollment',
+            entityId: enrollment._id,
+            actionPath: '/admin/students',
+            createdBy: req.user._id,
+         });
+      } catch (_notificationError) {
+         // Payment verification should not fail if notification fan-out fails.
       }
 
       return res.json({

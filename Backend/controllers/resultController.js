@@ -1,6 +1,7 @@
 import Result from '../models/Result.js';
 import User from '../models/User.js';
 import Course from '../models/Course.js';
+import { createNotificationForUser } from '../utils/notificationService.js';
 
 const resultPopulate = [
    { path: 'student', select: 'firstName lastName email role' },
@@ -57,6 +58,20 @@ export const addResult = async (req, res) => {
       });
 
       await result.populate(resultPopulate);
+
+      try {
+         await createNotificationForUser(student, {
+            type: 'result',
+            title: `New result published: ${course.title}`,
+            message: `Grade: ${grade}`,
+            entityType: 'result',
+            entityId: result._id,
+            actionPath: '/student/exams',
+            createdBy: req.user._id,
+         });
+      } catch (_notificationError) {
+         // Result creation should not fail if notification creation fails.
+      }
 
       return res.status(201).json({
          success: true,
@@ -182,6 +197,20 @@ export const updateResult = async (req, res) => {
             message: 'Result not found',
             data: {},
          });
+      }
+
+      try {
+         await createNotificationForUser(updated.student, {
+            type: 'result-update',
+            title: 'Result updated',
+            message: 'Your result record was updated by admin.',
+            entityType: 'result',
+            entityId: updated._id,
+            actionPath: '/student/exams',
+            createdBy: req.user._id,
+         });
+      } catch (_notificationError) {
+         // Result update should not fail if notification creation fails.
       }
 
       return res.json({

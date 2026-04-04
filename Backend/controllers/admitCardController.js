@@ -1,5 +1,6 @@
 import AdmitCard from '../models/AdmitCard.js';
 import User from '../models/User.js';
+import { createNotificationForUser } from '../utils/notificationService.js';
 
 export const createAdmitCard = async (req, res) => {
    try {
@@ -38,6 +39,20 @@ export const createAdmitCard = async (req, res) => {
             runValidators: true,
          },
       ).populate('student', 'firstName lastName email');
+
+      try {
+         await createNotificationForUser(student, {
+            type: 'admit-card',
+            title: 'Admit card available',
+            message: 'Your admit card was uploaded by admin.',
+            entityType: 'admit-card',
+            entityId: admit._id,
+            actionPath: '/student/exams',
+            createdBy: req.user._id,
+         });
+      } catch (_notificationError) {
+         // Admit card save should not fail if notification creation fails.
+      }
 
       return res.status(201).json({
          success: true,
@@ -138,6 +153,20 @@ export const updateAdmitCard = async (req, res) => {
             message: 'Admit card not found',
             data: {},
          });
+      }
+
+      try {
+         await createNotificationForUser(updated.student, {
+            type: 'admit-card-update',
+            title: 'Admit card updated',
+            message: 'Your admit card details were updated by admin.',
+            entityType: 'admit-card',
+            entityId: updated._id,
+            actionPath: '/student/exams',
+            createdBy: req.user._id,
+         });
+      } catch (_notificationError) {
+         // Admit card update should not fail if notification creation fails.
       }
 
       return res.json({

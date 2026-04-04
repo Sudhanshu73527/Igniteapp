@@ -1,4 +1,8 @@
 import Ticket from '../models/Ticket.js';
+import {
+   createNotificationForUser,
+   createNotificationsForRole,
+} from '../utils/notificationService.js';
 
 const normalizeStatus = (status = 'pending') => {
    const value = String(status).toLowerCase();
@@ -24,6 +28,20 @@ export const createTicket = async (req, res) => {
          description,
          status: 'pending',
       });
+
+      try {
+         await createNotificationsForRole('admin', {
+            type: 'ticket',
+            title: `New support ticket: ${subject}`,
+            message: description,
+            entityType: 'ticket',
+            entityId: ticket._id,
+            actionPath: '/admin/manage?section=tickets',
+            createdBy: req.user._id,
+         });
+      } catch (_notificationError) {
+         // Ticket creation should not fail if notification fan-out fails.
+      }
 
       return res.status(201).json({
          success: true,
@@ -93,11 +111,7 @@ export const updateTicketStatus = async (req, res) => {
          });
       }
 
-      const ticket = await Ticket.findByIdAndUpdate(
-         id,
-         { status: normalizeStatus(status) },
-         { returnDocument: 'after', runValidators: true },
-      );
+      const ticket = await Ticket.findById(id);
 
       if (!ticket) {
          return res.status(404).json({
@@ -105,6 +119,23 @@ export const updateTicketStatus = async (req, res) => {
             message: 'Ticket not found',
             data: {},
          });
+      }
+
+      ticket.status = normalizeStatus(status);
+      await ticket.save();
+
+      try {
+         await createNotificationForUser(ticket.user, {
+            type: 'ticket-status',
+            title: `Ticket status updated: ${ticket.subject}`,
+            message: `Your ticket is now marked as ${ticket.status}.`,
+            entityType: 'ticket',
+            entityId: ticket._id,
+            actionPath: '/student/tickets',
+            createdBy: req.user._id,
+         });
+      } catch (_notificationError) {
+         // Status update should not fail if notification creation fails.
       }
 
       return res.json({
@@ -154,6 +185,22 @@ export const replyToTicket = async (req, res) => {
 
       await ticket.save();
       await ticket.populate('replies.repliedBy', 'firstName lastName role');
+
+      try {
+         if (String(ticket.user) !== String(req.user._id)) {
+            await createNotificationForUser(ticket.user, {
+               type: 'ticket-reply',
+               title: `New reply on: ${ticket.subject}`,
+               message,
+               entityType: 'ticket',
+               entityId: ticket._id,
+               actionPath: '/student/tickets',
+               createdBy: req.user._id,
+            });
+         }
+      } catch (_notificationError) {
+         // Reply submission should not fail if notification creation fails.
+      }
 
       return res.json({
          success: true,

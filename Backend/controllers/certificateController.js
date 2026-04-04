@@ -2,6 +2,10 @@ import Certificate from '../models/Certificate.js';
 import Course from '../models/Course.js';
 import Enrollment from '../models/Enrollment.js';
 import User from '../models/User.js';
+import {
+   createNotificationForUser,
+   createNotificationsForRole,
+} from '../utils/notificationService.js';
 
 const populateConfig = [
    { path: 'user', select: 'firstName lastName email role' },
@@ -65,6 +69,20 @@ export const requestCertificate = async (req, res) => {
          },
          { upsert: true, returnDocument: 'after', runValidators: true },
       ).populate(populateConfig);
+
+      try {
+         await createNotificationsForRole('admin', {
+            type: 'certificate-request',
+            title: `Certificate request: ${course.title}`,
+            message: 'A student requested certificate approval.',
+            entityType: 'certificate',
+            entityId: certificate._id,
+            actionPath: '/admin/manage?section=certificates',
+            createdBy: req.user._id,
+         });
+      } catch (_notificationError) {
+         // Certificate request should not fail if notification fan-out fails.
+      }
 
       return res.status(201).json({
          success: true,
@@ -158,6 +176,23 @@ export const reviewCertificate = async (req, res) => {
 
       await certificate.save();
       await certificate.populate(populateConfig);
+
+      try {
+         await createNotificationForUser(certificate.user, {
+            type: 'certificate-review',
+            title: `Certificate ${normalizedStatus}`,
+            message:
+               normalizedStatus === 'approved'
+                  ? 'Your certificate has been approved by admin.'
+                  : 'Your certificate request was rejected. Please review admin notes.',
+            entityType: 'certificate',
+            entityId: certificate._id,
+            actionPath: '/student/courses',
+            createdBy: req.user._id,
+         });
+      } catch (_notificationError) {
+         // Certificate review should not fail if notification creation fails.
+      }
 
       return res.json({
          success: true,

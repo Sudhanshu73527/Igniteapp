@@ -1,4 +1,5 @@
 import Notice from '../models/Notice.js';
+import { createNotificationsForRole } from '../utils/notificationService.js';
 
 export const addNotice = async (req, res) => {
    try {
@@ -13,6 +14,20 @@ export const addNotice = async (req, res) => {
       }
 
       const notice = await Notice.create({ title, description });
+
+      try {
+         await createNotificationsForRole('student', {
+            type: 'notice',
+            title,
+            message: description,
+            entityType: 'notice',
+            entityId: notice._id,
+            actionPath: '/student/notices',
+            createdBy: req.user?._id || null,
+         });
+      } catch (_notificationError) {
+         // Notice creation should not fail if notification fan-out fails.
+      }
 
       return res.status(201).json({
          success: true,
@@ -83,6 +98,20 @@ export const updateNotice = async (req, res) => {
             message: 'Notice not found',
             data: {},
          });
+      }
+
+      try {
+         await createNotificationsForRole('student', {
+            type: 'notice',
+            title: `Notice updated: ${updated.title}`,
+            message: updated.description || '',
+            entityType: 'notice',
+            entityId: updated._id,
+            actionPath: '/student/notices',
+            createdBy: req.user?._id || null,
+         });
+      } catch (_notificationError) {
+         // Notice update should not fail if notification fan-out fails.
       }
 
       return res.json({

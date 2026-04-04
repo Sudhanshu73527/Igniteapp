@@ -16,6 +16,7 @@ import ticketRoutes from './routes/ticketRoutes.js';
 import lectureRoutes from './routes/lectureRoutes.js';
 import paymentRoutes from './routes/paymentRoutes.js';
 import certificateRoutes from './routes/certificateRoutes.js';
+import notificationRoutes from './routes/notificationRoutes.js';
 import { protect } from './middleware/authMiddleware.js';
 import { me } from './controllers/authController.js';
 
@@ -73,6 +74,7 @@ app.use('/api/tickets', ticketRoutes);
 app.use('/api/lectures', lectureRoutes);
 app.use('/api/payments', paymentRoutes);
 app.use('/api/certificates', certificateRoutes);
+app.use('/api/notifications', notificationRoutes);
 app.get('/api/me', protect, me);
 
 // test route
